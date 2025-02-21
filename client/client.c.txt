@@ -1,0 +1,91 @@
+// client/client.c
+
+#include "functions.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#include <pthread.h> // For threading
+
+#define PORT 8080
+
+// Function prototype for receiving messages from the server
+void* receive_messages(void* arg);
+
+int main() {
+    int sock = 0;
+    struct sockaddr_in server_addr;
+    char username[32];
+    char message[1024];
+
+    // Prompt user for a username
+    printf("Enter your username: ");
+    scanf("%31s", username);
+    while (getchar() != '\n'); // Clear input buffer
+
+    // Create a socket for communication
+    if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+        perror("Socket failed");
+        exit(EXIT_FAILURE);
+    }
+
+    // Define server address and port
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_port = htons(PORT);
+    server_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+
+    // Attempt to connect to the server
+    if (connect(sock, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
+        perror("Connection failed");
+        exit(EXIT_FAILURE);
+    }
+
+    // Send username to the server
+    send(sock, username, strlen(username) + 1, 0);
+
+    // Create a thread to receive messages from the server
+    pthread_t receive_thread;
+    pthread_create(&receive_thread, NULL, receive_messages, (void *)&sock);
+
+    // Main loop to send messages to the server
+    while (1) {
+        fgets(message, sizeof(message), stdin); // Read user input
+        
+        // If user types "/quit", exit the chat
+        if (strcmp(message, "/quit\n") == 0) {
+            send(sock, "/quit", strlen("/quit"), 0);
+            break;
+        }
+
+        // Only send non-empty messages
+        if (strlen(message) > 1) {  
+            printf("\033[1;34m%s: %s\033[0m", username, message); 
+            send(sock, message, strlen(message), 0);
+        }
+    }
+
+    // Wait for the receiving thread to finish
+    pthread_join(receive_thread, NULL);
+    close(sock); // Close socket connection
+    return 0;
+}
+
+// Function to handle receiving messages from the server
+void* receive_messages(void* arg) {
+    int sockfd = *((int*)arg);
+    char buffer[1024];
+    int valread;
+
+    while (1) {
+        valread = recv(sockfd, buffer, sizeof(buffer) - 1, 0); // Receive message
+        if (valread <= 0) {
+            break; // Exit if connection is lost
+        }
+        buffer[valread] = '\0'; // Null-terminate received message
+        printf("\033[1;32m%s\033[0m", buffer); // Print message in green
+        fflush(stdout);
+    }
+    return NULL;
+}

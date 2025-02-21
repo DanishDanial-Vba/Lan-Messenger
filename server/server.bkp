@@ -1,0 +1,75 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#include "get_Ip.h"
+
+#define PORT 11000
+#define BROADCAST_IP "255.255.255.255"
+#define SECRET_KEY 0x5A
+
+void xor_encrypt_decrypt(char *data, size_t len, char key) {
+    for (size_t i = 0; i < len; i++) {
+        data[i] ^= key;
+    }
+}
+
+int main() {
+    WSADATA wsaData;
+    
+    // ✅ Initialize Winsock
+    if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
+        fprintf(stderr, "WSAStartup failed: %d\n", WSAGetLastError());
+        return 1;
+    }
+
+    SOCKET sock;  // ✅ Changed `int sock` → `SOCKET sock`
+    struct sockaddr_in broadcast_addr;
+    char server_ip[INET_ADDRSTRLEN];
+
+    // Get the actual server IP dynamically
+    get_ip(server_ip, sizeof(server_ip));
+    printf("Detected Server IP: %s\n", server_ip);
+
+    // Encrypt the IP
+    xor_encrypt_decrypt(server_ip, strlen(server_ip), SECRET_KEY);
+
+    // ✅ Create UDP socket
+    sock = socket(AF_INET, SOCK_DGRAM, 0);
+    if (sock == INVALID_SOCKET) {  // ✅ No more signed-unsigned mismatch
+        fprintf(stderr, "Socket creation failed: %d\n", WSAGetLastError());
+        WSACleanup();
+        return 1;
+    }
+
+    // ✅ Enable broadcast mode
+    int broadcast_enable = 1;
+    if (setsockopt(sock, SOL_SOCKET, SO_BROADCAST, (char *)&broadcast_enable, sizeof(broadcast_enable)) < 0) {
+        fprintf(stderr, "Broadcast enable failed: %d\n", WSAGetLastError());
+        closesocket(sock);
+        WSACleanup();
+        return 1;
+    }
+
+    // ✅ Set up broadcast address
+    memset(&broadcast_addr, 0, sizeof(broadcast_addr));
+    broadcast_addr.sin_family = AF_INET;
+    broadcast_addr.sin_port = htons(PORT);
+    broadcast_addr.sin_addr.s_addr = inet_addr(BROADCAST_IP);
+
+    // ✅ Send encrypted IP
+    while (1) {
+        if (sendto(sock, server_ip, strlen(server_ip), 0, (struct sockaddr *)&broadcast_addr, sizeof(broadcast_addr)) < 0) {
+            fprintf(stderr, "Broadcast failed: %d\n", WSAGetLastError());
+        } else {
+            printf("Encrypted server IP broadcasted.\n");
+        }
+        Sleep(5000);  // ✅ Use `Sleep()` instead of `sleep()`
+    }
+
+    // Cleanup
+    closesocket(sock);
+    WSACleanup();
+    return 0;
+}

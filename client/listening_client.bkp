@@ -1,0 +1,68 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <winsock2.h>
+#include <ws2tcpip.h>
+
+#define PORT 11000
+#define SECRET_KEY 0x5A
+
+void xor_encrypt_decrypt(char *data, size_t len, char key) {
+    for (size_t i = 0; i < len; i++) {
+        data[i] ^= key;
+    }
+}
+
+int main() {
+    WSADATA wsaData;
+    
+    // ✅ Initialize Winsock
+    if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
+        fprintf(stderr, "WSAStartup failed: %d\n", WSAGetLastError());
+        return 1;
+    }
+
+    SOCKET sock;  // ✅ Use SOCKET instead of int
+    struct sockaddr_in client_addr;
+    char buffer[INET_ADDRSTRLEN] = {0};
+    socklen_t addr_len = sizeof(client_addr);
+
+    // ✅ Create UDP socket
+    sock = socket(AF_INET, SOCK_DGRAM, 0);
+    if (sock == INVALID_SOCKET) {
+        fprintf(stderr, "Socket creation failed: %d\n", WSAGetLastError());
+        WSACleanup();
+        return 1;
+    }
+
+    // ✅ Bind socket to the listening port
+    memset(&client_addr, 0, sizeof(client_addr));
+    client_addr.sin_family = AF_INET;
+    client_addr.sin_port = htons(PORT);
+    client_addr.sin_addr.s_addr = INADDR_ANY;  // Listen on all interfaces
+
+    if (bind(sock, (struct sockaddr *)&client_addr, sizeof(client_addr)) == SOCKET_ERROR) {
+        fprintf(stderr, "Binding failed: %d\n", WSAGetLastError());
+        closesocket(sock);
+        WSACleanup();
+        return 1;
+    }
+
+    printf("Listening for broadcast...\n");
+
+    // ✅ Receive encrypted IP
+    if (recvfrom(sock, buffer, sizeof(buffer) - 1, 0, (struct sockaddr *)&client_addr, &addr_len) < 0) {
+        fprintf(stderr, "Receiving failed: %d\n", WSAGetLastError());
+        closesocket(sock);
+        WSACleanup();
+        return 1;
+    }
+
+    // ✅ Decrypt the IP
+    xor_encrypt_decrypt(buffer, strlen(buffer), SECRET_KEY);
+    printf("Decrypted server IP: %s\n", buffer);
+
+    closesocket(sock);
+    WSACleanup();
+    return 0;
+}

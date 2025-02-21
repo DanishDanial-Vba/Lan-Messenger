@@ -1,0 +1,9 @@
+#Ignore VS Code Settings
+.vscode/
+
+#Ignore compiled files
+
+*.o
+*.out
+*.exe
+Features.txt
