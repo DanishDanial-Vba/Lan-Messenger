@@ -1,6 +1,6 @@
 CC = x86_64-w64-mingw32-gcc
 CFLAGS = -Wall -Wextra -static -Icommon
-LDFLAGS = -lws2_32 -lpthread # Link with Winsock (Only on Windows)
+LDFLAGS = -lws2_32 -lpthread # Link with Winsock (Windows) and pthread (POSIX threading)
 
 # Directories
 SRC_SERVER = server
