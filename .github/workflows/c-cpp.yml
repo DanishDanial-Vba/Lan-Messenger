@@ -10,7 +10,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
 
     steps:
       - name: Checkout repository
@@ -18,20 +18,16 @@ jobs:
 
       - name: Install MinGW for cross-compiling
         run: |
-          sudo apt update
-          sudo apt install -y mingw-w64 make
-
+          choco install mingw
+          
       - name: Compile C program using Makefile
         run: make
 
       - name: Run tests (example)
         run: |
-          # Example of running the compiled server and client (assuming they are set to run in test mode)
-          ./server.exe &
-          SERVER_PID=$!
-          sleep 2  # Wait for server to initialize
-          ./client.exe
-          kill $SERVER_PID  # Stop server after test
+          # Run server and client directly on Windows
+          Start-Process -NoNewWindow -FilePath ./server.exe
+          Start-Process -NoNewWindow -FilePath ./client.exe
 
       - name: Clean up
         run: make clean
