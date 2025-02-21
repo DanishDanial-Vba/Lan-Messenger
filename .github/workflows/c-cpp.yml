@@ -1,37 +1,42 @@
-name: C/C++ CI (Windows)
+name: C Program Test
 
 on:
   push:
-    branches: [ "main" ]
+    branches:
+      - main
   pull_request:
-    branches: [ "main" ]
+    branches:
+      - main
 
 jobs:
   build:
-
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v2
 
-    - name: Setup MSVC environment
-      uses: ilammy/msvc-dev-cmd@v1
+      - name: Set up MinGW for cross-compiling (Windows)
+        uses: msys2/setup-msys2-action@v2
+        with:
+          msystem: MINGW64
+          update: true
 
-    - name: Install dependencies
-      run: |
-        choco install mingw --yes
-        choco install cmake --installargs 'ADD_CMAKE_TO_PATH=System'
-      shell: powershell
+      - name: Install dependencies
+        run: |
+          pacman -S --noconfirm mingw-w64-x86_64-gcc make
 
-    - name: Configure (CMake)
-      run: cmake -B build
-      shell: cmd
+      - name: Compile C program using Makefile
+        run: make
 
-    - name: Build
-      run: cmake --build build --config Release
-      shell: cmd
+      - name: Run tests (example)
+        run: |
+          # Example of running the compiled server and client (assuming they are set to run in test mode)
+          ./server.exe &
+          SERVER_PID=$!
+          sleep 2  # Wait for server to initialize
+          ./client.exe
+          kill $SERVER_PID  # Stop server after test
 
-    - name: Run Tests (if applicable)
-      run: ctest --test-dir build
-      shell: cmd
+      - name: Clean up
+        run: make clean
