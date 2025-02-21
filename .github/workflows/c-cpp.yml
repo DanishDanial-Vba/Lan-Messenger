@@ -1,0 +1,37 @@
+name: C/C++ CI (Windows)
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup MSVC environment
+      uses: ilammy/msvc-dev-cmd@v1
+
+    - name: Install dependencies
+      run: |
+        choco install mingw --yes
+        choco install cmake --installargs 'ADD_CMAKE_TO_PATH=System'
+      shell: powershell
+
+    - name: Configure (CMake)
+      run: cmake -B build
+      shell: cmd
+
+    - name: Build
+      run: cmake --build build --config Release
+      shell: cmd
+
+    - name: Run Tests (if applicable)
+      run: ctest --test-dir build
+      shell: cmd
